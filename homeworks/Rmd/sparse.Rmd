@@ -1,0 +1,115 @@
+---
+title: "sparse"
+author: "Shengjia Tu"
+date: "2024-04-28"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Note
+A random vector Y has a multivariate normal distribution with mean zero and covariance matrix
+$$
+C = 
+\begin{bmatrix}
+1 & a & 0 & \cdots & 0 & 0 & 0\\ 
+a & 1 & a & \cdots & 0 & 0 & 0\\ 
+0 & a & 1 & \cdots & 0 & 0 & 0\\ 
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots & \vdots\\ 
+0 & 0 & 0 & \cdots & 1 & a & 0\\ 
+0 & 0 & 0 & \cdots & a & 1 & a\\ 
+0 & 0 & 0 & \cdots & 0 & a & 1
+\end{bmatrix}
+$$
+The log-likelihood for an observed vector y, dropping additive constants, is
+$$
+-(1/2)\mathrm{log}\,\mathrm{det}C-(1/2)y^TC^{-1}y
+$$
+
+## (a)
+Write an R function to compute the log likelihood for a vector y and a scalar a using dense matrix methods. 
+
+### Generate C
+```{r}
+makeC <- function(n, a)# n is size, a is the same in previous notes
+  {
+C <- diag(n)# n is the size of C
+# give a to diagonal entries
+C[cbind(1:(n-1),2:n)] <- a
+C[cbind(2:n,1:(n-1))] <- a 
+C 
+  }
+```
+By introducing Cholesky decomposition to C, we have 
+$$
+\begin{aligned}
+& C = R^TR \\
+& -(1/2)\mathrm{log}\,\mathrm{det}C = -\sum\mathrm{log}\,\mathrm{diag}L \\
+& y^TC^{-1}y = y^TR^{-1}R^{-T}y = z^Tz \\
+& \textrm{where, }R^Tz=y
+\end{aligned}
+$$
+
+### Write a function with theory above
+```{r}
+loglik <- function(y, a){
+C <- makeC(length(y), a)
+R <- chol(C)
+-sum(log(diag(R)))-0.5*t(forwardsolve(t(R), y)) %*% forwardsolve(t(R), y)
+}
+```
+Here I use forwardsolve() to solve lower triangular matrix, which is similar to backsolve() solving upper triangular matrix. 
+
+## (b)
+Write another version of your function to use the sparse matrix methods provided by the Matrix
+package to take advantage of the sparseness of the covariance matrix.
+
+### The process is almost the same, it's only different when generating C
+```{r}
+library(Matrix)
+makeC2 <- function(n, a) bandSparse(n = n, k = -c(0:1), diag = list(rep(1, n), rep(a, n-1)), symm = T)
+loglik2 <- function(y, a){
+C <- makeC2(length(y), a)
+R <- chol(C)
+-sum(log(diag(R)))-0.5*t(forwardsolve(t(R), y)) %*% forwardsolve(t(R), y)
+}
+```
+
+## (c)
+Compare the performance of your two functions on data vectors of different lengths.
+
+### Generate data
+```{r}
+library(MASS)
+n <- 1000
+a <- 0.5
+C <- diag(nrow = n, ncol = n)
+C[cbind(1:(n-1),2:n)] <- a
+C[cbind(2:n,1:(n-1))] <- a
+set.seed(123)
+y <- mvrnorm(1, mu = rep(0, n), Sigma = C)
+```
+### Calculate directly
+```{r}
+- 0.5 * log(det(C)) - 0.5 * t(y) %*% solve(C) %*% y
+```
+### use function in (a)
+```{r}
+loglik(y, a)
+system.time(loglik(y, a))
+```
+### use function in (b)
+```{r}
+loglik2(y, a)
+system.time(loglik2(y, a))
+```
+
+The results are the same and the sparse method is a lot more faster.
+
+
+
