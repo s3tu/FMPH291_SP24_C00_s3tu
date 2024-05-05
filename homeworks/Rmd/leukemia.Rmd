@@ -1,0 +1,70 @@
+---
+title: "leukemia"
+author: "Shengjia Tu"
+date: "2024-05-02"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+  html_document: default
+---
+
+## (a)
+Please see the proof at the end of this report.
+
+## (b)
+To find the maximum likelihood estimate, we construct the negative log likelihood function. This allows for maximizing the log likelihood by minimizing the negative log likelihood using the R optim() function. 
+```{r}
+f <- function(par,y,x,u,n) {
+  beta0 <- par[1]
+  beta1 <- par[2]
+  beta2 <- par[3]
+  delta <- par[4]
+   n <- 33
+  # i <- 1:n
+  z <- (y-beta0-beta1*x-beta2*u)/delta
+  -((-1)*n*log(delta)+sum(z-exp(z)))
+}# the output is negative log-likelihood
+library(MASS)
+x <- log(leuk$wbc/10000)
+y <- log(leuk$time)
+u <- as.numeric(leuk$ag) - 1# change AG to 0 and 1
+```
+
+
+```{r}
+# this optim() minimizes negative log-likelihood which maximizes log-likelihood to calculate MLE
+out.opt <- optim(par = c(1,1,1,1), fn = f, x = x, y = y, u = u, n = 33, hessian = T)
+```
+
+The output of the maximum likelihood estimate of $\beta_{0}$, $\beta_{1}$, $\beta_{2}$ and $\delta$ is:
+```{r}
+out.opt$par
+```
+
+The corresponding standard errors are obtained from the diagonal elements of the asymptotic variance which is the inverse of the negative of the second derivative of the log-likelihood. The negative of the second derivative of the log-likelihood is the Hessian matrix because optim() minimizes the negative log-likelihood.
+```{r}
+sqrt(diag(solve(out.opt$hessian)))
+```
+
+## (c)
+
+To check if the estimate calculated above is the MLE, we calculate the log-likelihood for a range of values in the neighborhood of the MLE calculated above (the range is from -1 to 1). 
+
+
+```{r}
+d <- as.matrix(
+  rbind(cbind(seq(-1, 1, 0.1), 0, 0, 0), 
+        cbind(0, seq(-1, 1, 0.1), 0, 0), 
+        cbind(0, 0, seq(-1, 1, 0.1), 0), 
+        cbind(0, 0, 0, seq(-1, 1, 0.1)))
+)
+m <- matrix(rep(out.opt$par, each = 21*4), ncol = 4) + d
+d <- cbind(d, -apply(m, MARGIN = 1, FUN = f, y = y, x = x, u = u, n = n))
+d <- cbind(d, d[,5] - (-f(out.opt$par, y = y, x = x, u = u, n = n)))
+d[,5] <- round(d[,5], 2)
+d[,6] <- round(d[,6], 2)
+colnames(d) <- c("diff_beta0", "diff_beta1", "diff_beta2", "diff_delta", "likelihood", "difference")
+d
+```
+
+The above table shows the changes of the estimate for each parameter, the corresponding values of the log likelihood and the differences between these values and the value of the log-likelihood at the MLE obtained from optim(). The log-likelihood evaluated at the MLE is larger than all  the other values of the log-likelihood. This indicates the  log-likelihood evaluated at the MLE is at least a local maximum. 
