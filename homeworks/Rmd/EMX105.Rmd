@@ -1,0 +1,169 @@
+---
+title: "EMX105"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-05-11"
+---
+
+```{r}
+# load functions
+source("../R/tabll.R")
+```
+
+# 6,7
+Test if there is any difference between the original value and the calculated one by trying out Exz.X as suggested. 
+```{r test}
+set.seed(121)
+N <- 20
+M <- 2
+C <- 3
+n <- 0.4*N
+true.Z.vec <- as.vector(unlist(mapply(rep, c(1, 2), c(n, N-n))))
+true.Z <- matrix(0, nrow = N, ncol = M)
+true.eta <- round(prop.by.row(matrix(runif(M * C), nrow = M)), 2)
+X <- matrix(nrow = N, ncol = C)
+m.vec <- round(runif(N) * 100)
+for(i in 1:N){
+  true.Z[i, true.Z.vec[i]] <- 1
+}
+for(i in 1:N){
+  X[i,] <- as.vector(rmultinom(1, size = m.vec[i], prob = true.Z[i,] %*% true.eta))
+}
+
+p.vec <- rep(1/M, M)
+eta.mat <- prop.by.row(X)
+
+for(it in 1:2){
+expect.Z <- ExZ.X(p.vec, eta.mat, X)
+expect.M <- Mparms(expect.Z, X)
+p.vec <- expect.M$p
+eta.mat <- expect.M$eta
+}
+# check ExZ.X
+round(colMeans(expect.Z), 2)
+# check eta.mat
+round(expect.M$eta, 2)
+true.eta
+```
+The Exz.X seems to return as expected.
+
+# 11
+```{r}
+# read in data, and create a matrix X105
+X105 <- read.csv("E:/FMPH291_SP24_C00_s3tu/X105.csv")
+X105=as.matrix(X105, row.names = NULL)
+```
+
+```{r}
+M <- 2
+for(M in 2:10){
+  X <- as.matrix(X105)
+  N <- nrow(X)
+  p.vec <- rep(1/M, M)
+  eta.mat <- matrix(nrow = M, ncol = ncol(X))
+  for(j in 1:M){
+    eta.mat[j,] <- colMeans(prop.by.row(X[sample(1:N, size = 10),]))
+    # print(eta.mat[j,])
+  }
+
+  # cat("M =", M)
+  # cat("\n")
+  ll.old <- tabll(p.vec, eta.mat, X)
+  # cat("before update:", ll.old)
+  # cat("\n")
+  ll.new <- updatell(p.vec, eta.mat, X, 50)$ll
+  # cat("after update:", ll.new)
+  # cat("\n")
+  # cat("\n")
+
+  while(abs(ll.new - ll.old) > 0.001){
+    cat("M =", M)
+    cat("\n")
+    cat("before update:", ll.old)
+    cat("\n")
+    cat("after update:", ll.new)
+    cat("\n")
+    cat("\n")
+    ll.old <- ll.new
+    ll.new <- updatell(p.vec, eta.mat, X, 50)$ll
+  }
+}
+```
+All updates of the loglikelihood finished within 50 iterations.  
+It was not always increasing as M increased.
+I think there are  probably 3 components as the log likelihood did not increase substantially after M=3.
+
+\newpage
+# Appendix: R Code for functions
+```{r, echo=TRUE, eval=FALSE}
+```
+
+## function tabll
+```{r tabll, echo=TRUE, eval=FALSE}
+tabll <- function(p.vec, eta.mat, X){
+  # X is a N by C matrix of counts
+  # p.vec is a vector of length M
+  N <- nrow(X)
+  C <- ncol(X)
+  M <- length(p.vec)
+  if(ncol(eta.mat) != C) warning("input don't have compatible dimensions")
+  if(nrow(eta.mat) != M) warning("input don't have compatible dimensions")
+  m.vec <- rowSums(X)
+  ll <- 1
+  for(i in 1:N){
+    lli <- 0
+    for(j in 1:M){
+      lli <- lli + p.vec[j] * dmultinom(X[i,], prob = eta.mat[j,])
+      }
+    ll <- ll * lli # observed data likelihood here
+  }
+  log(ll) # output log-likelihood
+  }
+```
+
+## function ExZ.X
+```{r ExZ.X, echo=TRUE, eval=FALSE}
+# get proportion of row elements
+prop.by.row <- function(X) sweep(X, 1, rowSums(X), "/")
+ExZ.X <- function(p.vec, eta.mat, X){
+  N <- nrow(X)
+  C <- ncol(X)
+  M <- length(p.vec)
+  Ez <- matrix(nrow = N, ncol = M)
+  for(i in 1:N){
+    for(j in 1:M){
+      Ez[i, j] <- p.vec[j] * dmultinom(X[i,], prob = eta.mat[j,])
+    }
+  }
+  prop.by.row(Ez)
+}
+```
+
+## function Mparms
+```{r Mparms, echo=TRUE, eval=FALSE}
+Mparms <- function(expect.Z, X){
+  eta.mat <- prop.by.row(t(expect.Z) %*% X)
+  p.vec <- colMeans(expect.Z)
+  list(eta = eta.mat, p = p.vec)
+}
+```
+
+## function updatell
+```{r updatell, echo=TRUE, eval=FALSE}
+updatell <- function(p.vec, eta.mat, X, n.iter = 10){
+  # check if the input have compatible dimensions
+  if(length(p.vec)!=dim(eta.mat)[1]|dim(eta.mat)[2]!=dim(X)[2])# M=M|C=C
+  {warning("input don't have compatible dimensions")
+    return(NULL)
+  }
+  for(it in 1:n.iter){
+    expect.Z <- ExZ.X(p.vec, eta.mat, X)
+    expect.M <- Mparms(expect.Z, X)
+    p.vec <- expect.M$p
+    eta.mat <- expect.M$eta
+  }
+  return(list(eta = eta.mat, p = p.vec, ll = tabll(p.vec, eta.mat, X)))
+}
+```
+
