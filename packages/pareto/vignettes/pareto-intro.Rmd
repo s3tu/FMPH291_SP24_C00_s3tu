@@ -1,6 +1,5 @@
 ---
 title: "pareto-intro"
-output: html_document
 date: "2024-05-14"
 output:
   rmarkdown::pdf_document
@@ -8,7 +7,6 @@ vignette: >
   %\VignetteIndexEntry{pareto-intro}
   %\VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
-
 ---
 
 

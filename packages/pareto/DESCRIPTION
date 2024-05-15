@@ -7,5 +7,6 @@ Author: Shengjia Tu
 Maintainer: Shengjia Tu <s3tu@ucsd.edu>
 Description: pareto distribution.
 License: GPL ( >= 2.0)
-Imports: Rcpp (>= 0.12.16), stats
+Imports: Rcpp (>= 0.12.16), stats, knitr, tidyverse
 LinkingTo: Rcpp
+VignetteBuilder: knitr
