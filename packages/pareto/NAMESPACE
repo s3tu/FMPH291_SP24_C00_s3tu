@@ -1,0 +1,4 @@
+export("dpareto", "ppareto", "qpareto", "rpareto")
+useDynLib(pareto, .registration=TRUE)
+importFrom(Rcpp, evalCpp)
+importFrom(stats, runif)

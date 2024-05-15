@@ -1,0 +1,11 @@
+Package: pareto
+Type: Package
+Title: pareto distribution
+Version: 1.0
+Date: 2024-05-14
+Author: Shengjia Tu
+Maintainer: Shengjia Tu <s3tu@ucsd.edu>
+Description: pareto distribution.
+License: GPL ( >= 2.0)
+Imports: Rcpp (>= 0.12.16), stats
+LinkingTo: Rcpp

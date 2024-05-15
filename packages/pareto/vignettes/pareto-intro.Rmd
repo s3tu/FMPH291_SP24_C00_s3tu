@@ -1,0 +1,138 @@
+---
+title: "pareto-intro"
+output: html_document
+date: "2024-05-14"
+output:
+  rmarkdown::pdf_document
+vignette: >
+  %\VignetteIndexEntry{pareto-intro}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+
+---
+
+
+The Pareto distribution density is calculated using the following formula: $$ f(x|\alpha,\beta) = \frac{\beta{\alpha}^\beta}{x^{\beta+1}} $$
+for $0<\alpha\leq x$ and $\beta>0$. Note that densities are defined on the entire real line; they are zero outside of the support of the distribution.
+
+```{r}
+knitr::opts_chunk$set(fig.width = 5, fig.height = 4)
+```
+
+## Code
+```{r, eval=FALSE}
+Rcpp::sourceCpp("../Rcpp/dpareto.cpp")
+source("../R/dpareto.R")
+
+ppareto <- function(q, alpha, beta, lower.tail = TRUE, log.p = FALSE){
+  max_length <- max(length(q), length(alpha), length(beta))
+  alpha <- rep(alpha, length = max_length)
+  beta <- rep(beta, length = max_length)
+  q <- rep(q, length = max_length)
+  log_p <- suppressWarnings(ifelse(q<alpha, 0, beta*(log(alpha)-log(q))))
+  log_p <- suppressWarnings(ifelse(alpha <=0 | beta <=0, NaN, log_p))
+  if (any( is.nan( log_p )) == TRUE){
+    warning("NaNs produced")
+  }
+  p <- log_p
+  if(! log.p) p <- exp(log_p)
+  if(lower.tail) p <- 1 - p
+  if(log.p & (! lower.tail)) p <- log(1-exp(log_p))
+  p
+}
+
+qpareto <- function(p, alpha, beta, lower.tail = TRUE, log.p = FALSE){
+  max_length <- max(length(p), length(alpha), length(beta))
+  alpha <- rep(alpha, length = max_length)
+  beta <- rep(beta, length = max_length)
+  p <- rep(p, length = max_length)
+  if(log.p) p = exp(p)
+  if(lower.tail) p = 1 - p
+  q <- suppressWarnings(alpha/(p^(1/beta)))
+  q <- suppressWarnings(ifelse(alpha <=0 | beta <=0, NaN, q))
+  if (any( is.nan( q )) == TRUE){
+    warning("NaNs produced")
+  }
+  q
+}
+
+rpareto <- function(n, alpha, beta){
+  qpareto(runif(n), alpha, beta)
+}
+
+```
+
+```{r}
+## R CMD INSTALL pareto_version.tar.gz
+library(pareto)
+```
+
+## Usage
+
+`dpareto` gives the density,  
+`ppareto` gives the distribution function,  
+`qpareto` gives the quantile function,  
+`rpareto` generates random deviates. 
+
+```{r}
+dpareto(x = 2:4, alpha = 1, beta = 2)
+ppareto(q = 2:4, alpha = 1, beta = 2)
+qpareto(p = c(0.1, 0.5, 0.9), alpha = 1, beta = 2)
+rpareto(n = 10, alpha = 1, beta = 2)
+```
+
+
+\newpage
+
+## Density
+```{r}
+suppressMessages(library(tidyverse))
+df_p <- data.frame(q = seq(1, 10, 0.1), alpha = 1, beta = 1)
+df_p <- df_p %>% mutate(beta = 2) %>% rbind(df_p, .)
+df_p <- df_p %>% mutate(alpha = 2) %>% rbind(df_p, .)
+df_p <- df_p %>% mutate(den = dpareto(q, alpha, beta), cum = ppareto(q, alpha, beta)) %>% mutate(alpha = as.factor(alpha), beta = as.factor(beta))
+```
+
+```{r}
+ggplot(df_p, aes(x = q, y = den, color = alpha, linetype = beta)) + 
+  geom_line() + 
+  theme_bw()
+```
+
+\newpage
+
+## Cumulative Distribution
+```{r}
+ggplot(df_p, aes(x = q, y = cum, color = alpha, linetype = beta)) + 
+  geom_line() + 
+  theme_bw()
+```
+
+
+```{r eval=FALSE, include=FALSE}
+## for creating R package
+working.Rdir <- file.path("packages", "working", "R")
+working.Rfiles <- file.path(working.Rdir, c("dpareto.R", "ppareto.R", "qpareto.R", "rpareto.R"))
+package.path <- file.path("packages")
+# package.skeleton("pareto", code_files = working.Rfiles, path = package.path)
+Rcpp::compileAttributes(pkgdir = "packages/pareto/",verbose = TRUE)
+# Rcpp::compileAttributes
+## R CMD build pareto
+## R CMD check pareto_1.0.tar.gz
+## R CMD INSTALL pareto_1.0.tar.gz
+```
+
+\newpage
+
+# Acknowledgement
+
+This document depended on the packages
+
+* Rcpp [@Rcpp-article, @Rcpp-book, @Rcpp-brief]
+* markdown [@R-markdown]
+* knitr [@R-knitr]
+
+and the R environment [@R-man] to get it done.
+
+
+# References
