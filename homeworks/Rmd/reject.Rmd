@@ -1,0 +1,455 @@
+---
+title: "Reject"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-05-20"
+author: Shengjia Tu
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<!-- A brief explanation of how rejection sampling works: -->
+<!-- The rejection sampling method generates sampling values from a target distribution $X$ with arbitrary probability density function $f(x)$ by using a proposal distribution $Y$ with probability density $g(x)$.  The idea is that one can generate a sample value from $X$ by instead sampling from $Y$ and accepting the sample $Y$ with probability $f(x)/(Mg(x))$, repeating the draws from $Y$ until a value is accepted. $M$ here is a constant and the finite bound on the likelihood ratio $f(x)/g(x)$. The  validation of this method is the envelope principle: when simulating the pair $(x,v=u*Mg(x))$, one produces a uniform simulation over the subgraph of $Mg(x)$. Accepting only pairs such that $u<f(x)/(Mg(x))$ then produces pairs $(x,y)$ uniformly distributed over the subgraph of  and thus, a simulation from $f(x)$. -->
+
+<!-- In this homework,We know the density of proposal distribution(here it is Cauchy distribution) to sample from, and create an envelop which completely encloses the proposed distribution.  -->
+
+<!-- The target function here is the dlnp function which returns the density of $\phi(x) exp(-exp(x))exp(xy)$.  -->
+
+<!-- The envelop here is the random deviates function rlnp which returns samples from a target distribution whose density is proportional to $\phi(x) exp(-exp(x))exp(xy)$ (i.e. the R function dlnp) using a rejection sampler. In detail, the rlnp function should find a curve proportional to a Cauchy density (with scale as its scale parameter) that matches dlnp as nearly as possible and always is at least as high as dlnp. That curve is the envelope.  -->
+
+## Rejection sampling
+Let \(f\left( x\right) =ch\left( x\right) \) and \(g\left( x\right) \) denote two density functions with support \(\chi _{f}\) and \(\chi _{g}\), where $c$ is a normalizing constant for \(f\left( x\right)\), i.e., 
+
+\[
+c=\frac{1}{\int_{x\in \chi _{f}}h\left( x\right) dx}\quad \text{such that }%
+\int_{x\in \chi _{f}}f\left( x\right) dx=c\int_{x\in \chi _{f}}h\left(
+x\right) dx=1 
+\]
+
+We want to sample from \(f\left( x\right) \). \ However, it is not easy to sample from \(f\left( x\right) \), but it is easy to sample from \(g\left(x\right) \).
+
+Assume that \(\chi _{f}\subseteq \chi _{g}\). \ Let 
+\[
+M=\sup_{x\in \chi _{f}}\frac{h\left( x\right) }{g\left( x\right) } 
+\]
+Then 
+\[
+h\left( x\right) \leq Mg\left( x\right) \quad \text{for all }x\in \chi _{f} 
+\]
+
+The rejection sampling is to sample from \( f\left( x\right) \) by sampling from \( g\left( x\right) \):
+
+1. Simulate \(U\sim U\left( 0,1\right) \);
+
+2. Simulate \(X\sim g\left( x\right) \);
+
+3. If $X$ and $U$ satisfy: \
+\[
+U\leq \frac{h\left( X\right) }{Mg\left( X\right) }
+\]
+then accept $X$. \ Otherwise, discard $X$ and continue the above process until an accepted $X$. \
+
+Let \(I\left( A\,\right) \) denote a set indicator. For the rejection sampling approach, the probability of accepting an $X$ is:
+\begin{eqnarray*}
+\Pr \left( X\text{ accepted}\right) &=&\Pr \left[ U\leq \frac{h\left(
+X\right) }{Mg\left( X\right) }\right] \\
+&=&E\left[ I\left( U\leq \frac{h\left( X\right) }{Mg\left( X\right) }%
+\,\right) \right] \\
+&=&E\left[ E\left\{ \left. I\left( U\leq \frac{h\left( X\right) }{Mg\left(
+X\right) }\,\right) \right\vert X\right\} \right] \\
+&=&E\left( \frac{h\left( X\right) }{Mg\left( X\right) }\right) \\
+&=&\int_{x\in \chi _{g}}\frac{h\left( X\right) }{Mg\left( x\right) }g(x)dx \\
+&=&\frac{1}{cM}\int_{x\in \chi _{g}}ch\left( X\right) dx \\
+&=&\frac{1}{cM}\int_{x\in \chi _{f}}f\left( x\right) dx \\
+&=&\frac{1}{cM}
+\end{eqnarray*}
+
+Thus the rejection sampling has effciency $\frac{1}{cM}$. \ 
+
+To show that the accepted $X$ follows the distribution \(f\left( x\right) \),
+we have: 
+\begin{eqnarray*}
+\Pr (X &\leq &t\mid X\text{ accepted})=\frac{\Pr \left( X\leq t,X\text{
+accepted}\right) }{\Pr \left( X\text{ accepted}\right) } \\
+&=&\frac{\Pr \left( X\leq t,X\text{ accepted}\right) }{\frac{1}{cM}} \\
+&=&cME\left[ I\left( X\leq t\right) I\left( U\leq \frac{h(X)}{Mg(X)}\right) %
+\right]  \\
+&=&cME\left\{ E\left[ \left. I\left( X\leq t\right) I\left( U\leq \frac{h(X)%
+}{Mg(X)}\right) \right\vert \,X\right] \right\}  \\
+&=&cME\left\{ I\left( X\leq t\right) E\left[ \left. I\left( U\leq \frac{h(X)%
+}{Mg(X)}\right) \right\vert \,X\right] \right\}  \\
+&=&cME\left[ I\left( X\leq t\right) \frac{h(X)}{Mg(X)}\right]  \\
+&=&M\int_{x\in \chi _{g}}I\left( x\leq t\right) \frac{ch\left( x\right) }{%
+Mg\left( x\right) }g(x)dx \\
+&=&\int_{x\in \chi _{g}}I\left( x\leq t\right) ch\left( x\right) dx \\
+&=&\int_{x\in \chi _{g}}I\left( x\leq t\right) f\left( x\right) dx \\
+&=&F\left( t\right) 
+\end{eqnarray*}
+
+For Homework 8, we want to sample from the density function:\ 
+\[
+f(x;\mu ,\sigma ,y)=c\times \phi (x;\mu ,\sigma )\times \exp (-\exp
+(x))\times \frac{\exp (x)^{y}}{y!}
+\]
+where $c$ is a normalizing constant and $\phi (x;\mu ,\sigma )$ denotes the
+density of the normal \(N\left( \mu ,\sigma \right) \). \ The
+parameters of the above distribution are \(\mu ,\sigma \) and \(y\). \ 
+
+We want to sample $f(x;\mu ,\sigma ,y)$ through sampling a Cauchy density:\ 
+\[
+g\left( x;x_{0},\lambda \right) =\left( \pi \lambda \left( 1+\frac{\left(
+x-x_{0}\right) ^{2}}{\lambda ^{2}}\right) \right) ^{-1}
+\]
+where \(x_{0}\) is the location and \(\lambda \) is the scale parameter. \ 
+
+For example, given $\mu =0,\sigma =1$ and $y=2$, the density $f(x;0,1,2)$
+becomes:
+\[
+f(x;0,1,2)=c\times \phi (x;0,1)\times \exp (-\exp (x))\times \frac{\exp
+(x)^{2}}{2!}
+\]
+
+To use the Cauchy density as an envelop function, we can set $\lambda =1$
+and find $M$ such that for all $x\in R$: 
+\[
+M\times g\left( x;x_{0},1\right) \geq f(x;0,1,2)/c=\phi (x;0,1)\times \exp
+(-\exp (x))\times \frac{\exp (x)^{2}}{2!}
+\]
+
+To find $M$, we first determine the mode of $f(x;0,1,2)/c$. \ If $x_{m}$ is
+the mode of $f(x;0,1,2)/c$, we then set $x_{0}=x_{m}$ in the Cauchy density \(g\left( x;x_{0},1\right) \). \ We can then determine $M$ by:      
+\[
+M=\frac{\phi (x_{m};0,1)\times \exp (-\exp (x_{m}))\times \frac{\exp
+(x_{m})^{2}}{2!}}{g\left( x;x_{m},1\right) }
+\]
+
+The plots of $\phi (x;0,1)\times \exp (-\exp (x))\times \frac{\exp (x)^{2}}{2!}$ and \(Mg\left( x;x_{m},1\right) \) are roughly `bell-shaped' curves with
+the $\phi (x;0,1)\times \exp (-\exp (x))\times \frac{\exp (x)^{2}}{2!}$
+curve hardly ever (or never) exceeding the \(Mg\left( x;x_{m},1\right) \)
+curve, but very close to it at the mode. \
+
+When sampling \(\left( X,U\right) \) uniformly from the area under the envelop
+curve \(Mg\left( x;x_{m},1\right) \), points \(\left( X,U\right) \) that lie
+below the curve of $\phi (x;0,1)\times \exp (-\exp (x))\times \frac{\exp
+(x)^{2}}{2!}$ satisfy:
+\[
+U\leq \frac{\phi (X;0,1)\times \exp (-\exp (X))\times \frac{\exp (X)^{2}}{2!}%
+}{Mg\left( X;x_{m},1\right) }
+\]
+
+Similarly, points \(\left( X,U\right) \) that satisfy the above will lie below
+the curve of $\phi (x;0,1)\times \exp (-\exp (x))\times \frac{\exp (x)^{2}}{2!}$. \ 
+
+## log-Normal Poisson distribution
+
+The density of LNP distribution:  
+$$
+f(x;y)=\phi(x)\exp(-\exp(x))\exp(xy)
+$$
+
+```{r}
+dlnp <-
+function(x,y ,log = FALSE) {
+val <-
+dnorm( x, log = TRUE ) +
+dpois( y, exp( x ), log = TRUE)
+if (log) val else exp( val )
+}
+```
+
+
+Using codes below in console(including commented lines), the mode of the density can be found roughly with cursor.
+```{r}
+# windows()
+curve(dlnp(x,2),-5,5)
+grid()
+# locator(1)
+# $x
+# 0.4269226
+# $y
+# 0.09201661
+```
+
+Similarly, we find the mode coordinates for the Cauthy distribution roughly using the cursor.
+```{r, eval=FALSE}
+# windows()
+curve(dcauchy(x,0.4269226,1),-5,5)
+grid()
+# locator(1)
+# $x
+# 0.3949434
+# $y
+# 0.3180528
+```
+
+### Envelope
+Envelope is a scaled Cauchy density that approximates a LNP density by timing the relative height of a LNP density curve to a Cauchy density curve.  
+
+We rescale the height of the Cauthy density by the ratio of the height of dlnp to the height of the Cauthy.
+
+```{r}
+curve(dlnp(x,2),-5,5)
+curve(0.09201661/0.3180528*dcauchy(x,0.4269226,1),-5,5, add = T, col="red")
+```
+From the plot above, two roughly ‘bell-shaped’ curves with the dlnp curve hardly ever (or never) exceeding the other curve, but very close to it at the mode.
+
+
+## rlnp & rlnpPlot
+The code of function rlnp() & rlnpPlot() is attached in the appendix.
+```{r,echo=FALSE}
+rlnp <- function(n, y, scale = 1){
+  # a <- -1 + log( max(1, y) )
+  # b <- log( max(1, y) )
+  # x0 <- optimize(function(x){dlnp(x, y)}, c(a, b), maximum = T)$maximum
+  # M <- exp(optimize(function(x){dlnp(x0,y,log=T)-dcauchy(x, x0, scale,log=T)}, x0+c(-2, sqrt( .Machine$double.eps )), maximum = T)$objective+1e-06)
+  x0 <- optimize(function(x){dlnp(x, y)}, c(-5, 5), maximum = T)$maximum
+M <- dlnp(x0,y)/optimize(function(x){dcauchy(x, x0, scale)}, c(-5, 5), maximum = T)$objective
+  x <- c()
+  yunif <- c()
+  dratio <- c()
+  keep <- c()
+  n_ <- 10*n
+  while(sum(keep) < n){
+    x_ <- rcauchy(n_)
+    yunif_ <- runif(n_)
+    dratio_ <- dlnp(x_, y) / (M*dcauchy(x_, x0, scale))
+    keep_ <- yunif_ <= dratio_
+    x <- c(x, x_)
+    yunif <- c(yunif, yunif_)
+    dratio <- c(dratio, dratio_)
+    keep <- c(keep, keep_)
+  }
+  i.end <- max(which(keep)[1:n])
+  return(list(x = x[1:i.end], yunif = yunif[1:i.end], dratio = dratio[1:i.end], keep = keep[1:i.end], x0 = x0, M = M, y = y, scale = scale))
+}
+
+rlnpPlot <- function(obj){
+  with(obj, {
+    curve( M * dcauchy( x , x0, scale), min(x[ keep ]), max(x[ keep ], lty = 4), ylab="", xlab = "")
+    curve( dlnp( x , y), min(x[ keep ]), max(x[ keep ]), col = 2, add = TRUE, ylab="", xlab = "")
+    points( x[ keep ], yunif[ keep ] * (dcauchy( x[ keep ] , x0, scale) * M), pch=".", col=2, ylab="", xlab = "")
+    points( x[ ! keep ], yunif[ ! keep ] * (dcauchy( x[ ! keep ] , x0, scale) * M), pch=".", ylab="", xlab = "")
+    legend( "topright", col = 1:2, lty = rep( 1, 2 ), legend = c( "denvelope/rejected", "dlnp/accepted"))
+    title(main = paste0("dlnp(x, ", y, ")"), sub = paste0("denvelope(x) = ", round(M,2), " * dcauchy(x,", round(x0,2), ",", round(scale,2), ")", "\n", "fraction of samples rejected = ", round(1-sum(keep)/length(keep),2)))
+  })
+}
+```
+
+When the y value is 0, the envelope does not 100% cover the LNP, since there were more than 5700 dratio values exceeding 1(see below). So the sampler
+has some flaw.
+```{r}
+lst.lnp <- rlnp(10000, 0)
+system.time({
+  lst.lnp <- rlnp(10000, 0)
+})
+rlnpPlot(lst.lnp)
+system.time(rlnpPlot(lst.lnp))
+```
+
+```{r, echo=FALSE}
+dratio_ex1 <- function(obj, nmax=20){
+  dratio_ex <- obj$dratio[which(lst.lnp$dratio>1)]
+if(length(dratio_ex) == 0){
+  cat("No dratio exceeds 1.0")
+}else if(length(dratio_ex) > nmax){
+  cat(length(dratio_ex), "dratio values exceeds 1.0")
+}else{
+  cat(length(dratio_ex), "dratio values exceeds 1.0:", paste(dratio_ex, sep = ", "))
+}
+}
+```
+
+```{r}
+dratio_ex1(lst.lnp)
+```
+
+
+When the y value is 3, the envelop covers dlnp 100% percent.
+The higher(compared to the previous case with y=0) rejection rate is due to the scaling factor CM.
+```{r}
+lst.lnp <- rlnp(10000, 3)
+system.time({
+  lst.lnp <- rlnp(10000, 3)
+})
+rlnpPlot(lst.lnp)
+system.time(rlnpPlot(lst.lnp))
+```
+
+```{r}
+dratio_ex1(lst.lnp)
+```
+
+<!-- include enough plots to explain what rlnp(10000,0) and rlnp(10000,3) show. -->
+When the y value is 10, the envelop covers the dlnp 100%. The higher rejection rate(compared to the case with y=0,3) is again due to the scaling  factor cM.
+
+```{r}
+lst.lnp <- rlnp(10000, 10)
+system.time({
+  lst.lnp <- rlnp(10000, 10)
+})
+rlnpPlot(lst.lnp)
+system.time(rlnpPlot(lst.lnp))
+```
+
+```{r}
+dratio_ex1(lst.lnp)
+```
+
+When the y = 100, the envelop covers dlnp 100%, the rejection rate in this case is extremely high, almost 1.
+
+```{r}
+lst.lnp <- rlnp(10000, 100)
+system.time({
+  lst.lnp <- rlnp(10000, 100)
+})
+rlnpPlot(lst.lnp)
+system.time(rlnpPlot(lst.lnp))
+```
+
+```{r}
+dratio_ex1(lst.lnp)
+```
+
+If the scale parameter change to 2, the rejection
+rate is also close to 1. By Comparing the plots, more samples seems to be rejected when the scale is 2.
+
+```{r}
+lst.lnp <- rlnp(10000, 100, 2)
+system.time({
+  lst.lnp <- rlnp(10000, 100, 2)
+})
+rlnpPlot(lst.lnp)
+system.time(rlnpPlot(lst.lnp))
+```
+
+```{r}
+dratio_ex1(lst.lnp)
+```
+
+
+When the scale changed to 0.1, the envelop does not completely cover dnlp.
+
+```{r}
+lst.lnp <- rlnp(10000, 100, 0.1)
+system.time({
+  lst.lnp <- rlnp(10000, 100, 0.1)
+})
+rlnpPlot(lst.lnp)
+system.time(rlnpPlot(lst.lnp))
+```
+
+```{r}
+dratio_ex1(lst.lnp)
+```
+
+
+When the scale change to 0.2, the envelop covers 100% of dlnp, but the rejection rate is close to 1. The close to 1 rejection rate is again due to the low sampling efficiency 1/cM
+
+```{r}
+lst.lnp <- rlnp(10000, 100, 0.2)
+system.time({
+  lst.lnp <- rlnp(10000, 100, 0.2)
+})
+rlnpPlot(lst.lnp)
+system.time(rlnpPlot(lst.lnp))
+```
+
+```{r}
+dratio_ex1(lst.lnp)
+```
+
+
+When the scale changed to 0.15, the rejection rate is a bit lower. And we choose scale = 0.15 as
+the best scale for y=100.
+
+```{r}
+lst.lnp <- rlnp(10000, 100, 0.15)
+system.time({
+  lst.lnp <- rlnp(10000, 100, 0.15)
+})
+rlnpPlot(lst.lnp)
+system.time(rlnpPlot(lst.lnp))
+```
+
+```{r}
+dratio_ex1(lst.lnp)
+```
+
+The beginning of this report (pp.1-2) provides a brief explanation of why and how rejection sampling works. 
+The target function here is LNP and the envelop function is the Cauthy.
+
+<!-- Check the values of the dratio element for each run of rlnp. If any exceeds 1.0 report that fact and the -->
+<!-- value observed. Offer a judgment as to whether a serious flaw in your sampler has been revealed and explain why you made that judgment. -->
+```{r}
+
+```
+
+\newpage
+
+## Source codes of functions
+### dlnp
+```{r, eval=FALSE}
+dlnp <-
+function(x,y ,log = FALSE) {
+val <-
+dnorm( x, log = TRUE ) +
+dpois( y, exp( x ), log = TRUE)
+if (log) val else exp( val )
+}
+```
+
+### rlnp 
+```{r}
+rlnp <- function(n, y, scale = 1){
+  x0 <- optimize(function(x){dlnp(x, y)}, c(-5, 5), maximum = T)$maximum
+M <- dlnp(x0,y)/optimize(function(x){dcauchy(x, x0, scale)}, c(-5, 5), maximum = T)$objective
+  x <- c()
+  yunif <- c()
+  dratio <- c()
+  keep <- c()
+  n_ <- 10*n
+  while(sum(keep) < n){
+    x_ <- rcauchy(n_)
+    yunif_ <- runif(n_)
+    dratio_ <- dlnp(x_, y) / (M*dcauchy(x_, x0, scale))
+    keep_ <- yunif_ <= dratio_
+    x <- c(x, x_)
+    yunif <- c(yunif, yunif_)
+    dratio <- c(dratio, dratio_)
+    keep <- c(keep, keep_)
+  }
+  i.end <- max(which(keep)[1:n])
+  return(list(x = x[1:i.end], yunif = yunif[1:i.end], dratio = dratio[1:i.end], keep = keep[1:i.end], x0 = x0, M = M, y = y, scale = scale))
+}
+```
+
+### rlnpPlot
+```{r,eval=FALSE}
+rlnpPlot <- function(obj){
+  with(obj, {
+    curve( M * dcauchy( x , x0, scale), min(x[ keep ]), max(x[ keep ], lty = 4), ylab="", xlab = "")
+    curve( dlnp( x , y), min(x[ keep ]), max(x[ keep ]), col = 2, add = TRUE, ylab="", xlab = "")
+    points( x[ keep ], yunif[ keep ] * (dcauchy( x[ keep ] , x0, scale) * M), pch=".", col=2, ylab="", xlab = "")
+    points( x[ ! keep ], yunif[ ! keep ] * (dcauchy( x[ ! keep ] , x0, scale) * M), pch=".", ylab="", xlab = "")
+    legend( "topright", col = 1:2, lty = rep( 1, 2 ), legend = c( "denvelope/rejected", "dlnp/accepted"))
+    title(main = paste0("dlnp(x, ", y, ")"), sub = paste0("denvelope(x) = ", round(M,2), " * dcauchy(x,", round(x0,2), ",", round(scale,2), ")", "\n", "fraction of samples rejected = ", round(1-sum(keep)/length(keep),2)))
+  })
+}
+```
+
+### dratio_ex1--reporting number of dratio>1 and their values
+```{r, eval=FALSE}
+dratio_ex1 <- function(obj, nmax=20){
+  dratio_ex <- obj$dratio[which(lst.lnp$dratio>1)]
+if(length(dratio_ex) == 0){
+  cat("No dratio exceeds 1.0")
+}else if(length(dratio_ex) > nmax){
+  cat(length(dratio_ex), "dratio values exceeds 1.0")
+}else{
+  cat(length(dratio_ex), "dratio values exceeds 1.0:", paste(dratio_ex, sep = ", "))
+}
+}
+```
