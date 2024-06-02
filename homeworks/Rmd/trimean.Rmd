@@ -1,0 +1,214 @@
+---
+title: "trimean"
+author: Shengjia Tu
+date: "5/31/2024"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+## R Markdown
+
+The trimean is an estimate of location based on the median and the quartiles
+that is constructed as a weighted average with the median weighted twice as
+heavily as each quartile. \ For Homework 9, we use simulation study to
+examine bias and reduction of variance by the control-variate method. \
+
+
+Let $X_{i}$ denote an i.i.d. sample from a given distribution \(f\left(
+x\right) \) \(\left( 1\leq i\leq 9\right) \) and let $X_{\left( i\right) }$
+denote the order statistic, i.e.,
+\[
+X_{\left( 1\right) }\leq X_{\left( 2\right) }\leq \cdots \leq X_{\left(
+9\right) }
+\]
+The trimean is defined as:
+\[
+\widehat{\theta }=\frac{X_{\left( 3\right) }+2X_{\left( 5\right) }+X_{\left(
+7\right) }}{4}
+\]
+
+The naive simulation estimate is to estimate the mean of $X_{i}$ using the
+trimean. \
+
+To implement a control-variate approach, we need to find a control variate W and compute the following estimate:\
+\[
+\widetilde{\theta }=\widehat{\theta }-b\left( W-E\left( W\right) \right)
+\]
+where $b$ is a known constant. \ By taking expectation on both sides, we
+have:
+\begin{eqnarray*}
+E\left( \widetilde{\theta }\right) &=&E\left( \widehat{\theta }\right) -E%
+\left[ b\left( W-E\left( W\right) \right) \right] \\
+&=&\delta -bE\left( W-E\left( W\right) \right) \\
+&=&\delta
+\end{eqnarray*}
+Thus the control-variate estimator $\widetilde{\theta }$ has the same mean
+as the trimean. \ Note that if the trimean is biased, $\delta \neq 0$. \
+For Homework 9, we choose the sample mean \(\overline{X}=\frac{1}{9}
+\sum_{i=1}^{9}X_{i}\) as the control variate \(W\). \ This control variate $%
+\overline{X}$ is highly correlated with the trimean $\widehat{\theta }$. \
+Thus we choose $b=1$.\ \ Since $E\left( \overline{X}\right) =0$ for all
+three distributions for the simulation study, the\ trimean with this
+control-variate is given by:\
+\[
+\widetilde{\theta }=\widehat{\theta }-\overline{X}
+\]
+
+We use Monte Carlo simulation to compare the two estimators \(\widetilde{\theta }\) and \(\widehat{\theta }\) in terms of bias, \(E\left( \widetilde{\theta }\right) \) and \(E\left( \widehat{\theta }\right) \), and variance \(Var\left( \widetilde{\theta }\right) \) and \(Var\left( \widehat{\theta }\right) \). \
+
+Let $N$ denote the Monte Carol sample size. \ Let $\widetilde{\theta }%
+^{\left( k\right) }$ and $\widehat{\theta }^{\left( k\right) }$ denote the
+two trimean estimators from the $k$th Monte Carlo sample \(\left( 1\leq k\leq
+N\right) \). \ Then we estimate the bias and variance of each estimator by:\
+\begin{eqnarray*}
+\text{bias} &:&\widehat{E}\left( \widetilde{\theta }\right) =\frac{1}{N}%
+\sum_{i=1}^{N}\widetilde{\theta }^{\left( k\right) },\quad \widehat{E}\left(
+\widehat{\theta }\right) =\frac{1}{N}\sum_{i=1}^{N}\widehat{\theta }^{\left(
+k\right) } \\
+\text{variance} &:&\widehat{Var}\left( \widetilde{\theta }\right) =\frac{1}{%
+N-1}\sum_{i=1}^{N}\left( \widetilde{\theta }^{\left( k\right) }-\widehat{E}%
+\left( \widetilde{\theta }\right) \right) ^{2},\quad \widehat{Var}\left(
+\widetilde{\theta }\right) =\frac{1}{N-1}\sum_{i=1}^{N}\left( \widehat{%
+\theta }^{\left( k\right) }-\widehat{E}\left( \widehat{\theta }\right)
+\right) ^{2}
+\end{eqnarray*}
+
+
+Construct samples from Standard normal distribution as below: 
+
+```{r}
+#sample size is 9
+n <- 9
+# simulation 10000 times
+N <- 10000
+
+# mean of standard normal distribution 
+mu_ <- 0
+# standard deviation of standard normal distribution 
+sd_ <- 1
+
+set.seed(321)
+#construct the trimean function that is an estimate of location based on the median and the quartiles that is constructed as a weighted average with the median weighted twice as heavily as each quartile.
+Xtrimean.snorm <- rep(NA, N)# naive, without control variate
+Xtrimean2.snorm <- rep(NA, N) # with control variate
+for(j in 1:N){
+  Xn <- rnorm(n, mu_, sd_)
+  Xn <- sort(Xn)
+  Xtrimean.snorm[j] <- (Xn[3]+2*Xn[5]+Xn[7])/4
+  Xtrimean2.snorm[j] <- (Xn[3]+2*Xn[5]+Xn[7])/4-mean(Xn)# with control covariate
+}
+# bias of naive trimean
+E.Xtrimean.snorm <- mean(Xtrimean.snorm)
+# bias of trimean with control variate
+E.Xtrimean2.snorm <- mean(Xtrimean2.snorm)
+# SE of naive trimean
+Var.Xtrimean.snorm <- var(Xtrimean.snorm)
+# (Var.Xtrimean2 <- var(Xtrimean2))
+# standard errors of estimates
+SE.Var.Xtrimean.snorm <- sqrt(sum((Xtrimean.snorm-E.Xtrimean.snorm)^2)/(N-1))
+# SE of trimean with control variate
+Var.Xtrimean2.snorm <- var(Xtrimean2.snorm)
+SE.Var.Xtrimean2.snorm <- sqrt(Var.Xtrimean2.snorm)
+```
+
+Then we construct t-distribution with 4 degrees of freedom: 
+
+```{r}
+#sample size is 9
+n <- 9
+# simulation 10000 times
+N <- 10000
+
+# mean of standard normal distribution 
+mu_ <- 0
+# standard deviation of standard normal distribution 
+sd_ <- 1
+
+set.seed(321)
+#construct the trimean function that is an estimate of location based on the median and the quartiles that is constructed as a weighted average with the median weighted twice as heavily as each quartile.
+Xtrimean.t4 <- rep(NA, N)# naive, without control variate
+Xtrimean2.t4 <- rep(NA, N) # with control variate
+for(j in 1:N){
+  Xn <- rt(n, df=4)
+  Xn <- sort(Xn)
+  Xtrimean.t4[j] <- (Xn[3]+2*Xn[5]+Xn[7])/4
+  Xtrimean2.t4[j] <- (Xn[3]+2*Xn[5]+Xn[7])/4-mean(Xn)# with control covariate
+}
+# bias of naive trimean
+E.Xtrimean.t4 <- mean(Xtrimean.t4)
+# bias of trimean with control variate
+E.Xtrimean2.t4 <- mean(Xtrimean2.t4)
+# SE of naive trimean
+Var.Xtrimean.t4 <- var(Xtrimean.t4)
+SE.Var.Xtrimean.t4 <- sqrt(Var.Xtrimean.t4)
+# SE of trimean with control variate
+Var.Xtrimean2.t4 <- var(Xtrimean2.t4)
+SE.Var.Xtrimean2.t4 <- sqrt(Var.Xtrimean2.t4)
+```
+
+Next we construct a t-distribution with 10 degrees of freedom: 
+
+```{r}
+#sample size is 9
+n <- 9
+# simulation 10000 times
+N <- 10000
+
+# mean of standard normal distribution 
+mu_ <- 0
+# standard deviation of standard normal distribution 
+sd_ <- 1
+
+set.seed(321)
+#construct the trimean function that is an estimate of location based on the median and the quartiles that is constructed as a weighted average with the median weighted twice as heavily as each quartile.
+Xtrimean.t10 <- rep(NA, N)# naive, without control variate
+Xtrimean2.t10 <- rep(NA, N) # with control variate
+for(j in 1:N){
+  Xn <- rt(n, df=10)
+  Xn <- sort(Xn)
+  Xtrimean.t10[j] <- (Xn[3]+2*Xn[5]+Xn[7])/4
+  Xtrimean2.t10[j] <- (Xn[3]+2*Xn[5]+Xn[7])/4-mean(Xn)# with control covariate
+}
+# bias of naive trimean
+E.Xtrimean.t10 <- mean(Xtrimean.t10)
+# bias of trimean with control variate
+E.Xtrimean2.t10 <- mean(Xtrimean2.t10)
+# SE of naive trimean
+Var.Xtrimean.t10 <- var(Xtrimean.t10)
+SE.Var.Xtrimean.t10 <- sqrt(Var.Xtrimean.t10)
+# SE of trimean with control variate
+Var.Xtrimean2.t10 <- var(Xtrimean2.t10)
+SE.Var.Xtrimean2.t10 <- sqrt(Var.Xtrimean2.t10)
+```
+
+## Question 1
+```{r}
+cbind(E.Xtrimean.snorm, E.Xtrimean.t4, E.Xtrimean.t10)
+table1=matrix(c(Var.Xtrimean.snorm, SE.Var.Xtrimean.snorm,
+              Var.Xtrimean.t4, SE.Var.Xtrimean.t4,
+              Var.Xtrimean.t10, SE.Var.Xtrimean.t10),
+              nrow=3, ncol=2, byrow = TRUE)
+colnames(table1)=c("Variance","SE")
+rownames(table1)=c("snorm","t4","t10")
+table1
+```
+The results for the bias show that the trimean estimator is unbiased, since the biases  are very small for all three distributions. The results for the variance/standard errors show that the trimean estimator has slightly smaller variance for the standard normal than the two t-distributions. Also, the variance for the t-distribution with higher degrees of freedom is closer to  the standard normal.
+
+
+## Question 2
+```{r}
+percentage.snorm=100*(Var.Xtrimean.snorm-Var.Xtrimean2.snorm)/Var.Xtrimean.snorm
+percentage.t4=100*(Var.Xtrimean.t4-Var.Xtrimean2.t4)/Var.Xtrimean.t4
+percentage.t10=100*(Var.Xtrimean.t10-Var.Xtrimean2.t10)/Var.Xtrimean.t10
+table2=matrix(c(Var.Xtrimean.snorm, Var.Xtrimean2.snorm, percentage.snorm,
+              Var.Xtrimean.t4, Var.Xtrimean2.t4, percentage.t4,
+              Var.Xtrimean.t10, Var.Xtrimean2.t10, percentage.t10),
+              nrow=3, ncol=3, byrow = TRUE)
+colnames(table2)=c("Variance","Variance with control","percent of reduction")
+rownames(table2)=c("snorm","t4","t10")
+table2
+```
+Here we use the sample mean as a control variable for the control-variate trimean estimator, since the sample mean is highly corelated with the trimean.
+
+The results in the table demonstrate that the control variate trimean estimator has a significant reduction on the variance of the trimean estimator. In particular, there is about 85% reduction for the standard normal, about 81% and 62% reduction for the t-distribution with 4 and 10 degrees of freedom, repectively. The amount of reduction is similar between the standard normal with the t-distribution with 10 degrees of freedom. This is because the standard normal is more similar with t-distribution with 10 degrees of freedom than t-distribution with 4 degrees of freedom.
