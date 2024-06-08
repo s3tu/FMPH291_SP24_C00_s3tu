@@ -1,0 +1,2 @@
+export("dtrunc3", "dtrunc4", "loglik3", "loglik4", "maxlik", "rtrunc4")
+importFrom("stats", "dnorm", "integrate", "na.omit", "optim", "pnorm", "rnorm")

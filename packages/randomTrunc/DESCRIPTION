@@ -1,0 +1,10 @@
+Package: randomTrunc
+Type: Package
+Title: Simulation of left truncated normal data and estimation of mean and sd for normal truncated data 
+Version: 1.1
+Date: 2024-06-08
+Author: Shengjia Tu
+Maintainer: Shengjia Tu <s3tu@ucsd.edu>
+Description: It can be used to simulate left truncated normal data and estimate parameters of the truncated normal distribution.
+License: GPL ( >= 2.0)
+VignetteBuilder: knitr
