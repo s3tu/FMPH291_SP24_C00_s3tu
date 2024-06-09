@@ -1,0 +1,1024 @@
+---
+title: "truncsim"
+author: Shengjia Tu
+date: "6/6/2024"
+output: pdf_document
+---
+
+```{r}
+library(randomTrunc)
+ # library( randomTrunc, lib.loc = "packages/packages/randomTrunc.Rcheck")
+```
+
+The maximization procedure is implemented with `optim` function on the negative loglikelihoods with respect to the models.  
+
+## R Markdown
+
+```{r}
+# library(randomTrunc)
+# library( randomTrunc, lib.loc = "packages/randomTrunc.Rcheck")
+```
+
+```{r}
+N <- 1000
+```
+
+```{r,eval=FALSE, include=FALSE}
+n <- 2000
+mu_x <- 0.0
+sigma_x <- 1.0
+mu_z <- -10
+sigma_z <- 0.001
+
+set.seed(123)
+
+lst_parm <- list()
+lst_parm$mu_x <- runif(N, -1, 1)
+lst_parm$sigma_x <- runif(N, 0.5, 1.5)
+lst_parm$mu_z <- runif(N, -12, -8)
+lst_parm$sigma_z <- runif(N, 0.0005, 0.005)
+```
+
+```{r,eval=FALSE,include=FALSE}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 3)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxlik(x, model = "three", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+```
+```{r,eval=FALSE,include=FALSE}
+dtrunc3new <- function(x,  mean=0.0, sd=1.0, log = FALSE){
+  a=-1
+    den=dnorm(x, mean, sd)/integrate(dnorm, a, Inf, mean = mean, sd = sd)$value
+    
+    if(log) return(log(den))# treat with parameter 'log'
+  return(den)
+}
+
+loglik3new <- function(parm, x){
+  sum(dtrunc3new(x,  parm[1], parm[2], log = T))
+}
+
+loglik3.negnew <- function(parm, x){-loglik3new(parm, x)}
+
+maxliknew <- function(x, model = c("two","three","four"), parm = NULL, ...){
+  model <- match.arg(model)
+  parm2 <- (if(length(parm) == 4) parm[c(3, 4)] else parm)
+  parm3 <- (if(length(parm) == 4) parm[c(1, 3, 4)] else parm)
+  switch(model, two=optim(par = parm2, fn=loglik3.negnew, x=x, ...), three = optim(par = parm3, fn = loglik3.neg, x = x), four = optim(par = parm, fn = loglik4.neg, x = x))
+  # two=optim(par = parm2, fn=loglik3.negnew, x=x, ...),
+}
+
+maxlik <- function(x, model = c("three","four"), parm = NULL, ...){
+  model <- match.arg(model)
+  parm3 <- (if(length(parm) == 4) parm[c(1, 3, 4)] else parm)
+  switch(model, three = optim(par = parm3, fn = loglik3.neg, x = x), four = optim(par = parm, fn = loglik4.neg, x = x))
+}
+```
+```{r,eval=FALSE}
+ x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)
+loglik3new(c(-1,lst_parm$mu_x[2], lst_parm$sigma_x[2]), -1)
+ optim(par = c(-1,lst_parm$mu_x[2], lst_parm$sigma_x[2]), fn=loglik3.neg, x=x)
+```
+
+## 2 params sim
+```{r,eval=FALSE,include=FALSE}
+n <- 2000
+mu_x <- 0.0
+sigma_x <- 1
+mu_z <- -5
+sigma_z <- 0.0000001
+
+set.seed(123)
+
+lst_parm <- list()
+lst_parm$mu_x <- runif(N, -3, 3)
+lst_parm$sigma_x <- runif(N, 0.1, 2)
+lst_parm$mu_z <- runif(N, -12, -8)
+lst_parm$sigma_z <- runif(N, 0.0005, 0.005)
+```
+
+```{r,eval=FALSE,include=FALSE}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 2)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxliknew(x, model = "two", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]),a=mu_z)), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+```
+## 3 params sim
+```{r,eval=FALSE,include=FALSE}
+n <- 2000
+mu_x <- 0.0
+sigma_x <- 1.0
+mu_z <- -5
+sigma_z <- 0.00000001
+
+set.seed(123)
+
+lst_parm <- list()
+lst_parm$mu_x <- runif(N, -1, 1)
+lst_parm$sigma_x <- runif(N, 0.5, 1.5)
+lst_parm$mu_z <- runif(N, -7, -3)
+lst_parm$sigma_z <- runif(N, 0.0005, 0.005)
+```
+
+```{r,eval=FALSE,include=FALSE}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 3)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxlik(x, model = "three", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+```
+
+## 4 parms sim
+```{r,eval=FALSE,include=FALSE}
+n <- 2000
+mu_x <- 0.0
+sigma_x <- 1.0
+mu_z <- -3
+sigma_z <- 0.1
+
+set.seed(123)
+
+lst_parm <- list()
+lst_parm$mu_x <- runif(N, -1, 1)
+lst_parm$sigma_x <- runif(N, 0.5, 1.5)
+lst_parm$mu_z <- runif(N, -5, -1)
+lst_parm$sigma_z <- runif(N, 0.0005, 0.2)
+```
+
+```{r,eval=FALSE,include=FALSE}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 4)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)# move here
+  out <- try(suppressWarnings(maxlik(x, model = "four", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "sigma_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_z: ", mean(m_par[,"sigma_z"]))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+
+```
+
+
+
+## sim1(n = 20, mu_x = 0.0, sigma_x = 1.0, mu_z = -1.0 and sigma_z = 0.10)
+```{r,include=FALSE}
+n <- 20
+mu_x <- 0.0
+sigma_x <- 1.0
+mu_z <- -1
+sigma_z <- 0.1
+
+set.seed(123)
+
+lst_parm <- list()
+lst_parm$mu_x <- runif(N, -1, 1)
+lst_parm$sigma_x <- runif(N, 0.5, 1.5)
+lst_parm$mu_z <- runif(N, -3, 1)
+lst_parm$sigma_z <- runif(N, 0.0005, 0.2)
+```
+### 2 params
+```{r,eval=FALSE,include=FALSE}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 2)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxliknew(x, model = "two", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]),a=mu_z)), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+```
+### 3 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 3)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxlik(x, model = "three", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+### 4 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 4)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)# move here
+  out <- try(suppressWarnings(maxlik(x, model = "four", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "sigma_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_z: ", mean(m_par[,"sigma_z"]))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+## sim2(n = 100, mu_x = 0.0, sigma_x = 1.0, mu_z = -1.0 and sigma_z = 0.10)
+```{r,include=FALSE}
+n <- 100
+mu_x <- 0.0
+sigma_x <- 1.0
+mu_z <- -1
+sigma_z <- 0.1
+
+set.seed(123)
+
+lst_parm <- list()
+lst_parm$mu_x <- runif(N, -1, 1)
+lst_parm$sigma_x <- runif(N, 0.5, 1.5)
+lst_parm$mu_z <- runif(N, -3, 1)
+lst_parm$sigma_z <- runif(N, 0.0005, 0.2)
+```
+### 2 params
+```{r,eval=FALSE,include=FALSE}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 2)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxliknew(x, model = "two", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]),a=mu_z)), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+```
+### 3 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 3)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxlik(x, model = "three", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+### 4 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 4)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)# move here
+  out <- try(suppressWarnings(maxlik(x, model = "four", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "sigma_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_z: ", mean(m_par[,"sigma_z"]))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+# median MSE: standard errors?
+# lasso no cross validation, but use GCV
+```
+
+## sim3(n = 1000, mu_x = 0.0, sigma_x = 1.0, mu_z = -1.0 and sigma_z = 0.10)
+```{r,include=FALSE}
+n <- 1000
+mu_x <- 0.0
+sigma_x <- 1.0
+mu_z <- -1
+sigma_z <- 0.1
+
+set.seed(123)
+
+lst_parm <- list()
+lst_parm$mu_x <- runif(N, -1, 1)
+lst_parm$sigma_x <- runif(N, 0.5, 1.5)
+lst_parm$mu_z <- runif(N, -3, 1)
+lst_parm$sigma_z <- runif(N, 0.0005, 0.2)
+```
+### 2 params
+```{r,eval=FALSE,include=FALSE}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 2)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxliknew(x, model = "two", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]),a=mu_z)), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+```
+### 3 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 3)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxlik(x, model = "three", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+### 4 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 4)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)# move here
+  out <- try(suppressWarnings(maxlik(x, model = "four", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "sigma_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_z: ", mean(m_par[,"sigma_z"]))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+
+## sim4(same setups, sigma_z = 0.25)
+### sim41(n = 20, mu_x = 0.0, sigma_x = 1.0, mu_z = -1.0 and sigma_z = 0.25)
+```{r,include=FALSE}
+n <- 20
+mu_x <- 0.0
+sigma_x <- 1.0
+mu_z <- -1
+sigma_z <- 0.25
+
+set.seed(123)
+
+lst_parm <- list()
+lst_parm$mu_x <- runif(N, -1, 1)
+lst_parm$sigma_x <- runif(N, 0.5, 1.5)
+lst_parm$mu_z <- runif(N, -3, 1)
+lst_parm$sigma_z <- runif(N, 0.0005, 0.2)
+```
+
+### 3 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 3)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxlik(x, model = "three", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+### 4 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 4)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)# move here
+  out <- try(suppressWarnings(maxlik(x, model = "four", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "sigma_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_z: ", mean(m_par[,"sigma_z"]))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+
+### sim42(n = 100, mu_x = 0.0, sigma_x = 1.0, mu_z = -1.0 and sigma_z = 0.25)
+```{r,include=FALSE}
+n <- 100
+mu_x <- 0.0
+sigma_x <- 1.0
+mu_z <- -1
+sigma_z <- 0.25
+
+set.seed(123)
+
+lst_parm <- list()
+lst_parm$mu_x <- runif(N, -1, 1)
+lst_parm$sigma_x <- runif(N, 0.5, 1.5)
+lst_parm$mu_z <- runif(N, -3, 1)
+lst_parm$sigma_z <- runif(N, 0.0005, 0.2)
+```
+
+### 3 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 3)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxlik(x, model = "three", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+### 4 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 4)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)# move here
+  out <- try(suppressWarnings(maxlik(x, model = "four", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "sigma_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_z: ", mean(m_par[,"sigma_z"]))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+
+
+### sim43(n = 1000, mu_x = 0.0, sigma_x = 1.0, mu_z = -1.0 and sigma_z = 0.25)
+```{r,include=FALSE}
+n <- 1000
+mu_x <- 0.0
+sigma_x <- 1.0
+mu_z <- -1
+sigma_z <- 0.25
+
+set.seed(123)
+
+lst_parm <- list()
+lst_parm$mu_x <- runif(N, -1, 1)
+lst_parm$sigma_x <- runif(N, 0.5, 1.5)
+lst_parm$mu_z <- runif(N, -3, 1)
+lst_parm$sigma_z <- runif(N, 0.0005, 0.2)
+```
+
+### 3 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 3)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)#move to below
+  out <- try(suppressWarnings(maxlik(x, model = "three", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+### 4 params
+```{r}
+set.seed(123)
+n_error <- 0
+n_converge <- 0
+m_par <- matrix(nrow = N, ncol = 4)
+for(i in 1:N){
+  x <- rtrunc4(n, mu_z, sigma_z, mu_x, sigma_x)# move here
+  out <- try(suppressWarnings(maxlik(x, model = "four", parm = c(lst_parm$mu_z[i], lst_parm$sigma_z[i], lst_parm$mu_x[i], lst_parm$sigma_x[i]))), silent = T)
+  if(class(out) != "try-error"){
+    if(out$convergence == 0){
+      n_converge <- n_converge + 1
+      m_par[i,] <- out$par
+    }
+  }else{
+    n_error <- n_error + 1
+  }
+}
+colnames(m_par) <- c("mu_z", "sigma_z", "mu_x", "sigma_x")
+m_par <- na.omit(m_par)
+
+cat("Number of failures due to inappropriate initial parameters: ", n_error, " (", round(n_error/N*100,2), "%)", sep = "")
+cat("\n")
+cat("Percent of convergence of the optim function: ", round(n_converge/(N-n_error)*100,2), "%", " (", n_converge, "/", N-n_error, ")", ", ", round(n_converge/(N)*100,2), "%", " (", n_converge, "/", N, ")", sep = "")
+cat("\n")
+cat("Only coverged results are used for calculating MSEs.")
+cat("\n")
+cat("Mean of mu_z: ", mean(m_par[,"mu_z"],na.rm=TRUE))
+cat("\n")
+cat("Mean of sigma_z: ", mean(m_par[,"sigma_z"]))
+cat("\n")
+cat("Mean of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of mu_x: ", mean(m_par[,"mu_x"],na.rm=TRUE))
+cat("\n")
+cat("SE of mu_x: ", sqrt(var(m_par[,"mu_x"],na.rm=TRUE)))
+cat("\n")
+cat("Mean of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE))
+cat("\n")
+cat("Bias of sigma_x: ", mean(m_par[,"sigma_x"],na.rm=TRUE)-1)
+cat("\n")
+cat("SE of sigma_x: ", sqrt(var(m_par[,"sigma_x"],na.rm=TRUE)))
+cat("\n")
+```
+
+# Summary and conclusion
+
+## summary for simulation
+
+### sigma_z=0.1
+![](0.10.png)
+
+### sigma_z=0.25
+![](0.25.png)
+
+## conclusion
+
+### 1.sigma_z=0.1
+
+For n=20, estimates of mu_x and sigma_x for 3-parameter model have slightly smaller bias and SE than the 4-parameter model. The 3-parameter model is better than the 4-parameter model.
+
+For n=100, estimates of mu_x and sigma_x for 3-parameter model have much smaller bias and SE than the 4-parameter model. The 3-parameter model is better than the 4-parameter model.
+
+For n=1000, estimates of mu_x from the 3-parameter model has larger bias but smaller SE than the 4-parameter model.  Estimates of sigma_x from the 3-parameter model has larger bias but smaller SE than the 4-parameter model. The 4-parameter model is better as its estimates are less biased.
+
+### 2.sigma_z=0.25
+
+For n=20, estimates of mu_x and sigma_x for 3-parameter model have  smaller bias and SE than the 4-parameter model. The 3-parameter model is better than the 4-parameter model.
+
+For n=100, estimates of mu_x from the 3-parameter model has smaller bias and smaller SE than the 4-parameter model.  Estimates of sigma_x from the 3-parameter model has slightly larger bias but slightly smaller SE than the 4-parameter model. 
+
+The 3-parameter model provides better estimates for mu_x than the 4-parameter model. But the 3-parameter model provides slightly more biased and more varying estimates for sigma_x than the 4-parameter model.
+
+For n=1000,  estimates of mu_x and sigma_x from the 3-parameter model has larger bias but smaller SE than the 4-parameter model. The 4-parameter model is preferred.
