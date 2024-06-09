@@ -1,0 +1,113 @@
+---
+title: "longley"
+author: "Shengjia Tu"
+date: "2024-04-22"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## 0. preparation
+```{r}
+library(datasets)
+library(gmp)
+X=data.matrix(longley[, 1:6])
+X_1 <- as.matrix(cbind(Intercept = 1, X))# matrix with intercept
+y=matrix(longley[, "Employed"], ncol = 1)
+```
+## a.exact
+```{r}
+# just calculate 
+# write the function
+lsq_fit <- function(x, y, output_type = "floating"){
+  solve(t(x) %*% x) %*% t(x) %*% y
+}
+# apply data
+lsq_fit(X_1, y)
+# calculate with arbitrary precision rational numbers
+# write the function
+lsq_fit_bigq <- function(x, y, output_type = "floating"){
+  x <- as.bigq(x)
+  y <- as.bigq(y)
+  output <- solve.bigq(t(x) %*% x) %*% t(x) %*% y
+  if(output_type == "floating") output <- matrix(as.double(output), ncol = 1)
+  if(output_type == "rational") output <- as.bigq(output)
+  output
+}
+# apply data
+round(lsq_fit_bigq(X_1, y, output_type = "rational"), 2)
+```
+```{r}
+(coef_ls_bigq <- lsq_fit_bigq(X_1, y))
+```
+
+## b.cholesky
+```{r}
+# write the function
+lsq_chol <- function(x, y,center=FALSE){
+  if(center==FALSE)
+  {
+  L <- chol(crossprod(unname(x)))
+  solve(L) %*% solve(t(L)) %*% t(x) %*% y
+  }
+  if(center==TRUE)
+  {
+    X_2 <- sweep(X, 2, colMeans(X))
+    X_2 <- as.matrix(cbind(Intercept = 1, X_2))
+    lsq_chol(X_2,y)
+  }
+}
+# write the function for arbitrary precision rational numbers
+lsq_chol_bigq <- function(x, y, output_type = "floating",center=FALSE){
+  L <- chol(crossprod(unname(x)))
+  L <- as.bigq(L)
+  x <- as.bigq(x)
+  y <- as.bigq(y)
+  if(center==FALSE)
+  {
+  output <- solve.bigq(L) %*% solve.bigq(t(L)) %*% t(x) %*% y
+  }
+  if(center==TRUE)
+  {
+    X_2 <- sweep(X, 2, colMeans(X))
+    X_2 <- as.matrix(cbind(Intercept = 1, X_2))
+    output=lsq_chol_bigq(X_2,y,center=FALSE)
+  }
+  if(output_type == "floating") output <- matrix(as.double(output), ncol = 1)
+  if(output_type == "rational") output <- as.bigq(output)
+  output
+}
+# apply data without centering
+(coef_chol_bigq <- lsq_chol_bigq(X_1, y,center=FALSE))
+# apply data with centering
+(coef_c_chol_bigq <- lsq_chol_bigq(X_1, y,center=TRUE))
+
+```
+
+## c.qr
+```{r}
+lm.fit=lm(Employed ~ ., data = longley)
+coef_lm=matrix(unname(coef(lm.fit)), ncol=1)
+```
+
+
+To compare with the centered method, we exclude the intercept term in our comparison.
+
+```{r}
+mean((coef_ls_bigq - coef_lm)[-1,])
+mean((coef_ls_bigq - coef_chol_bigq)[-1,])
+mean((coef_ls_bigq - coef_c_chol_bigq)[-1,])
+```
+
+So, the non-centered Cholesky approach returns greatest biased estimation and centering will help to improve the accuracy.  
+
+```{r, eval=FALSE, include=FALSE}
+tolerance <- 1e-20
+all.equal(coef_lm[-1,], coef_ls_bigq[-1,], tolerance = tolerance)
+all.equal(coef_lm[-1,], coef_chol_bigq[-1,], tolerance = tolerance)
+all.equal(coef_lm[-1,], coef_c_chol_bigq[-1,], tolerance = tolerance)
+```

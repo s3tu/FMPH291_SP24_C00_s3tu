@@ -1,0 +1,82 @@
+---
+title: "fmph291-hw2"
+author: "Shengjia Tu"
+date: "2024-04-25"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# The Pareto Distribution
+
+An function dparetoR is produced to calculate the density for a Pareto distribution given $\alpha$, $\beta$ and x and saved it in “homeworks/R/dparetoR.R”. The code for this function is shown below.
+```{r}
+dparetoR <- function(x, a, b, logflag = FALSE){
+  nx <- length(x)
+  na <- length(a)
+  nb <- length(b)
+  n <- max(nx, na, nb)
+  if (nx < n) x <- rep(x, length.out = n)
+  if (na < n) a <- rep(a, length.out = n)
+  if (nb < n) b <- rep(b, length.out = n)
+
+  ld <- ifelse(a <= 0 | b <= 0, NaN, ifelse(x < a, -Inf, log(b) + b * log(a) - (b + 1) * log(x)))
+  
+  if(logflag){
+    return(ld)
+  }else{
+    return(exp(ld))
+  }
+}
+```
+
+To avoid ambiguous, we introduced `logflag` instead of `log` as the parameter in the function.
+
+# An Rcpp Approach 
+An Rcpp function called dpareto that is vectorized by calling function paretodens repeatedly to construct a vector of results is produced. It is shown in the appendix and sourced below: 
+```{r}
+# load function
+Rcpp::sourceCpp("../Rcpp/dpareto.cpp")
+```
+
+We first show some examples with the function paretodens which calculate the non-vectorized form of density for a Pareto distribution
+```{r}
+# examples for "paretodens"
+paretodens(1, 1, 2)
+paretodens(4, 1, 2)
+# pareto <- Vectorize(paretodens)
+```
+
+The vectorized form function dpareto is tested with various cases: 
+```{r}
+# examples vectorized function, "dpareto"
+set.seed(123)
+x <- runif(5,0,10)
+dpareto(x, 4.0, seq(3.0, 5.0, by= 0.75))
+dparetoR(x, 4.0, seq(3.0, 5.0, by= 0.75))
+dpareto(1.0, 2.0, NA)
+dpareto(1000, 1000, 1000)
+```
+
+The rcpp dpareto code is compared to the R dparetoR code. They show the same result. Similarly, the two codes can be tested on other cases listed above. They show same results. 
+```{r}
+mat <- matrix(c(1, 1, 1, 1, 2, 2, 1, 3, 2, 2, 1, 2, 2, 2, 2, 2, 3, 3, 3, 1, 3, 3, 2, 3, 3, 3, 4, 4, 1, 4, 2, 3, 1, .5, .5, .5, -1, 1, 1, 2, -1, 0, 0, 0, 1), nrow = 3)
+x <- mat[3, ]
+alpha <- mat[1, ]
+beta <- mat[2, ]
+# paste0(beta*alpha^beta, "/", x^(beta+1))
+# output <- strsplit("1, 1/4, 3/16, 1/2, 1, 24/81, 1/3, 2/3, 81/256, 1/4, 0, 1, NaN, NaN, NaN", ", ")[[1]]
+
+# data.frame(x, alpha, beta, output)
+x <- x[1:12]
+alpha <- alpha[1:12]
+beta <- beta[1:12]
+all.equal(dparetoR(x, alpha, beta), dpareto(x, alpha, beta))
+```
+
+## Appendix
+```{r, eval = FALSE, code = readLines("../Rcpp/dpareto.cpp"), engine = 'Rcpp'}
+```

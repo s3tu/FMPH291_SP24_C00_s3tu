@@ -1,0 +1,135 @@
+---
+title: "fmph291-hw1"
+author: "Shengjia Tu"
+date: "2024-04-20"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# The Pareto Distribution
+
+<!-- Stop using MASS::fraction as it's approximate -->
+
+```{r}
+x <- c(1, 1, 2, 2, 3, 3, 3, 3, 3, 3)
+alpha <- c(1, 1, 1, 2, 1, 2, 2, 3, 3, 3)
+beta <- c(1, 2, 1, 1, 1, 1, 2, 1, 2, 3)
+f_o <- c(1, 2, 1/4, 1/2, 1/9, 2/9, 8/27, 1/3, 2/3, 1)
+f <- strsplit("1, 2, 1/4, 1/2, 1/9, 2/9, 8/27, 1/3, 2/3, 1", ", ")[[1]]
+df_f <- data.frame(x, alpha, beta, f)
+print(df_f)
+```
+
+$f(x|\alpha,\beta)$ is shown as f in the above table.
+
+# Native R
+```{r}
+dparetoR <- function(x, a, b, logflag = FALSE){
+  nx <- length(x)
+  na <- length(a)
+  nb <- length(b)
+  n <- max(nx, na, nb)
+  if (nx < n) x <- rep(x, length.out = n)
+  if (na < n) a <- rep(a, length.out = n)
+  if (nb < n) b <- rep(b, length.out = n)
+
+  ld <- ifelse(a <= 0 | b <= 0, NaN, ifelse(x < a, -Inf, log(b) + b * log(a) - (b + 1) * log(x)))
+  
+  if(logflag){
+    return(ld)
+  }else{
+    return(exp(ld))
+  }
+}
+```
+
+```{r}
+source( "../R/dparetoR.R")
+# check with example
+dparetoR( 4, 1, 2)
+dparetoR( 4:5, 1, 2)
+# density plot
+curve( dparetoR( x, 1, 2 ), from = 0, to = 10 )
+# reproduce the table
+dparetoR( 1:3, 1, 1)
+dparetoR( 1, 1, 2)
+dparetoR( 2:3, 2, 1)
+dparetoR( 3, 2, 2)
+dparetoR( 3, 3, 1)
+dparetoR( 3, 3, 2)
+dparetoR( 3, 3, 3)
+# check the equality 
+v <- c(dparetoR( 1, 1, 1), dparetoR( 1, 1, 2), dparetoR( 2, 1, 1), dparetoR( 2, 2, 1), dparetoR( 3, 1, 1), dparetoR( 3, 2, 1), dparetoR( 3, 2, 2), dparetoR( 3, 3, 1), dparetoR( 3, 3, 2), dparetoR( 3, 3, 3))
+v2 <- as.numeric(f_o)
+all.equal(v,v2)
+```
+
+```{r}
+# dparetoR function
+print(dparetoR)
+```
+
+To avoid ambiguous, we introduced `logflag` instead of `log` as the parameter in the function.
+
+```{r}
+# plots for two other sets of
+curve( dparetoR( x, 1, 3 ), from = 0, to = 10 )
+curve( dparetoR( x, 2, 3 ), from = 0, to = 10 )
+```
+
+# An Rcpp Approach 
+
+```{r}
+# load function
+Rcpp::sourceCpp("../Rcpp/dpareto.cpp")
+```
+
+
+```{r}
+# examples for "paretodens"
+paretodens(1, 1, 2)
+paretodens(4, 1, 2)
+# pareto <- Vectorize(paretodens)
+```
+
+
+```{r}
+# examples vectorized function, "dpareto"
+set.seed(123)
+x <- runif(5,0,10)
+dpareto(x, 4.0, seq(3.0, 5.0, by= 0.75))
+dparetoR(x, 4.0, seq(3.0, 5.0, by= 0.75))
+dpareto(1.0, 2.0, NA)
+dpareto(1000, 1000, 1000)
+```
+
+```{r}
+mat <- matrix(c(1, 1, 1, 1, 2, 2, 1, 3, 2, 2, 1, 2, 2, 2, 2, 2, 3, 3, 3, 1, 3, 3, 2, 3, 3, 3, 4, 4, 1, 4, 2, 3, 1, .5, .5, .5, -1, 1, 1, 2, -1, 0, 0, 0, 1), nrow = 3)
+x <- mat[3, ]
+alpha <- mat[1, ]
+beta <- mat[2, ]
+# paste0(beta*alpha^beta, "/", x^(beta+1))
+# output <- strsplit("1, 1/4, 3/16, 1/2, 1, 24/81, 1/3, 2/3, 81/256, 1/4, 0, 1, NaN, NaN, NaN", ", ")[[1]]
+# data.frame(x, alpha, beta, output)
+x <- x[1:12]
+alpha <- alpha[1:12]
+beta <- beta[1:12]
+all.equal(dparetoR(x, alpha, beta), dpareto(x, alpha, beta))
+```
+
+## Appendix: code
+```{r,eval = FALSE, code = readLines("../R/dparetoR.R")}
+
+```
+
+```{r, eval = FALSE, code = readLines("../Rcpp/dpareto.cpp"), engine = 'Rcpp'}
+
+```
+
+

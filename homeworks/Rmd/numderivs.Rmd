@@ -1,0 +1,150 @@
+---
+title: "numderivs"
+author: "Shengjia Tu"
+date: "2024-04-19"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Some comments on partial_C(f,x,h)
+
+By a Taylor series expansion, $$
+f(x+h)=f(x)+f^{\left( 1\right) }(x)h+\frac{1}{2!}f^{\left( 2\right)
+}(x)h^{2}+\frac{1}{3!}f^{\left( 3\right) }(x)h^{3}+O\left( h^{4}\right) 
+$$% where $f^{\left( k\right) }(x)$ denotes the $k$th order derivative of $f(x)$% .  
+
+So for $f(x+ih)$ at $x$, we have:$$
+f(x+ih)=f(x)+if^{\left( 1\right) }(x)h-\frac{1}{2!}f^{\left( 2\right)
+}(x)h^{2}-i\frac{1}{3!}f^{\left( 3\right) }(x)h^{3}+... 
+$$ The imaginary part of f(x + ih) consists of all odd-powered terms in the Taylor series expansion: $$
+\Im (f(x+hi))=f^{\left( 1\right) }(x)h-\frac{1}{3!}f^{\left( 3\right)
+}(x)h^{3}+\frac{1}{5!}f^{\left( 5\right) }(x)h^{5}+... 
+$$
+Thus
+\[
+\partial _{C}(f,x,h)=\frac{\Im (f(x+hi))}{h}=f^{\left( 1\right) }(x)-\frac{1%
+}{3!}f^{\left( 3\right) }(x)h^{2}+O\left( h^{4}\right) 
+\]
+
+## write the three approximate functions.
+
+```{r}
+dFf <- function(f, x, h=1/256) (f(x+h) - f(x)) / h
+dSf <- function(f, x, h=1/256) (f(x+h) - f(x-h)) / (2*h)
+dCf <- function(f, x, h=1/256) Im(f(complex(real = x, imaginary = h))) / h 
+```
+
+## 1.f1(x)=sin(x)
+
+Then we examine different approximation methods for f1 at x=1. Let g1 denotes the true derivative of $f_{1}(x) = sin(x)$and we know that $g_{1}(x) = cos(x)$.
+
+```{r}
+h <- 2^(-seq(1:64)) # store h values
+z <- -log2(h) # store values for plot on x axis
+x <- 1
+f1 <- sin
+g1 <- cos # the true derivative
+# calculate values using different approximation methods
+deriv_F1 <- dFf(f1, x, h)
+deriv_S1 <- dSf(f1, x, h)
+deriv_C1 <- dCf(f1, x, h)
+deriv_true1 <- g1(x)
+# display the results, it contains 64 rows, but here just show 16 to save space
+data.frame(z, deriv_true1, deriv_F1, deriv_S1, deriv_C1)[seq(1, length(z), 4),]
+# plot partial_F(f,x,h) and compare with true derivative
+plot(deriv_F1 ~ z)
+abline(h = deriv_true1, col = "red")
+# plot partial_S(f,x,h) and compare with true derivative
+plot(deriv_S1 ~ z)
+abline(h=deriv_true1, col = "red")
+# plot partial_C(f,x,h) and compare with true derivative
+plot(deriv_C1 ~ z)
+abline(deriv_true1, 0, col = "red")
+```
+
+## 2.f2(x)=10000*sin(x)
+Next we examine different approximation methods for f2 at x=1. Let g2 denotes the true derivative of $f_{2}(x) = 10000sin(x)$and we know that $g_{2}(x) = 10000cos(x)$.
+
+```{r}
+h <- 2^(-seq(1:64)) # store h values
+z <- -log2(h) # store values for plot on x axis
+x <- 1
+f2 <- function(x) 10000 * sin(x)
+g2 <- function(x) 10000 * cos(x) # the true derivative
+# calculate values using different approximation methods
+deriv_F2 <- dFf(f2, x, h)
+deriv_S2 <- dSf(f2, x, h)
+deriv_C2 <- dCf(f2, x, h)
+deriv_true2 <- g2(x)
+# display the results, it contains 64 rows, but here just show 16 to save space
+data.frame(z, deriv_true2, deriv_F2, deriv_S2, deriv_C2)[seq(1, length(z), 4),]
+# plot partial_F(f,x,h) and compare with true derivative
+plot(deriv_F2 ~ z)
+abline(h = deriv_true2, col = "red")
+# plot partial_S(f,x,h) and compare with true derivative
+plot(deriv_S2 ~ z)
+abline(h=deriv_true2, col = "red")
+# plot partial_C(f,x,h) and compare with true derivative
+plot(deriv_C2 ~ z)
+abline(deriv_true2, 0, col = "red")
+```
+
+## 3.f3(x)=tan(x)
+Then we examine different approximation methods for f3 at x=1.59. Let g3 denotes the true derivative of $f_{3}(x) = tan(x)$and we know that $g_{3}(x) = sec(x)^2$.
+
+```{r}
+h <- 2^(-seq(1:64)) # store h values
+z <- -log2(h) # store values for plot on x axis
+x <- 1.59
+f3 <- tan
+g3 <- function(x) 1 / cos(x)^2 # the true derivative
+# calculate values using different approximation methods
+deriv_F3 <- dFf(f3, x, h)
+deriv_S3 <- dSf(f3, x, h)
+deriv_C3 <- dCf(f3, x, h)
+deriv_true3 <- g3(x)
+# display the results, it contains 64 rows, but here just show 16 to save space
+data.frame(z, deriv_true3, deriv_F3, deriv_S3, deriv_C3)[seq(1, length(z), 4),]
+# plot partial_F(f,x,h) and compare with true derivative
+plot(deriv_F3 ~ z)
+abline(h = deriv_true3, col = "red")
+# plot partial_S(f,x,h) and compare with true derivative
+plot(deriv_S3 ~ z)
+abline(h=deriv_true3, col = "red")
+# plot partial_C(f,x,h) and compare with true derivative
+plot(deriv_C3 ~ z)
+abline(deriv_true3, 0, col = "red")
+```
+
+## 4.f4(x)=Phi(x) (standard normal density)
+Then we examine different approximation methods for f4 at x=0.5. Let g4 denotes the true derivative of $f_{4}(x) = phi(x) = \frac{e^{-x^2/2}}{\sqrt{2\pi}}$and we know that $$g_{4}(x) =\frac{-xe^{-x^2/2}}{\sqrt{2\pi}} $$.
+```{r}
+h <- 2^(-seq(1:64)) # store h values
+z <- -log2(h) # store values for plot on x axis
+x <- 0.5
+f4 <- function(x) exp(-x^2/2) / sqrt(2*pi)
+g4 <- function(x) -x * exp(-x^2/2) / sqrt(2*pi) # the true derivative
+# calculate values using different approximation methods
+deriv_F4 <- dFf(f4, x, h)
+deriv_S4 <- dSf(f4, x, h)
+deriv_C4 <- dCf(f4, x, h)
+deriv_true4 <- g4(x) 
+# display the results, it contains 64 rows, but here just show 16 to save space
+data.frame(z, deriv_true4, deriv_F4, deriv_S4, deriv_C4)[seq(1, length(z), 4),]
+# plot partial_F(f,x,h) and compare with true derivative
+plot(deriv_F4 ~ z)
+abline(h = deriv_true4, col = "red")
+# plot partial_S(f,x,h) and compare with true derivative
+plot(deriv_S4 ~ z)
+abline(h=deriv_true4, col = "red")
+# plot partial_C(f,x,h) and compare with true derivative
+plot(deriv_C4 ~ z)
+abline(deriv_true4, 0, col = "red")
+```
+
+The approximation results are very close to the real derivative when z is larger than 10 (0<h<2-10) for almost all situations in the homework. In some situations, f2 seems to converge faster than other two approximation functions.
